@@ -2,18 +2,19 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
+# Initialize the Flask application
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///your_database.db'  
+
 # Load configuration from config.py
-app.config.from_object('config')
-# initialize extensions 
+app.config.from_object('config.Config')
 
-
+# Initialize SQLAlchemy and Flask-Migrate
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# import models 
-from models import User 
+# Import models (important for migrations)
+from models import User, FoodRequest, Donation, Volunteer, Notification, Event, Inventory, Feedback
 
 if __name__ == '__main__':
-    app.run (debug=True)
+    # Run the application in debug mode
+    app.run(debug=True)
