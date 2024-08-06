@@ -17,6 +17,9 @@ def register():
     if not username or not email or not password or not role:
         return jsonify({'msg': 'Missing fields'}), 400
 
+    if User.query.filter_by(email=email).first() or User.query.filter_by(username=username).first():
+        return jsonify({'msg': 'User already exists'}), 409
+
     hashed_password = generate_password_hash(password)
     user = User(username=username, email=email, password=hashed_password, role=role)
     db.session.add(user)
@@ -35,3 +38,19 @@ def login():
         access_token = create_access_token(identity={'username': user.username, 'role': user.role})
         return jsonify(access_token=access_token), 200
     return jsonify({'msg': 'Invalid credentials'}), 401
+
+@auth_bp.route('/user', methods=['GET'])
+@jwt_required()
+def get_user():
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user['username']).first()
+    if user:
+        user_data = {
+            'username': user.username,
+            'email': user.email,
+            'role': user.role,
+            'created_at': user.created_at,
+            'updated_at': user.updated_at
+        }
+        return jsonify(user_data), 200
+    return jsonify({'msg': 'User not found'}), 404
