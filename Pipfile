@@ -11,6 +11,9 @@ flask = "*"
 python-dotenv = "*"
 flask-mail = "*"
 pytest = "*"
+flask-cors = "*"
+werkzeug = "*"
+flask-restful = "*"
 
 [dev-packages]
 
