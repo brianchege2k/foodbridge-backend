@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from app import db
 from models import User
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from werkzeug.security import generate_password_hash, check_password_hash
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -16,7 +17,8 @@ def register():
     if not username or not email or not password or not role:
         return jsonify({'msg': 'Missing fields'}), 400
 
-    user = User(username=username, email=email, password=password, role=role)
+    hashed_password = generate_password_hash(password)
+    user = User(username=username, email=email, password=hashed_password, role=role)
     db.session.add(user)
     db.session.commit()
     
@@ -29,7 +31,7 @@ def login():
     password = data.get('password')
     
     user = User.query.filter_by(email=email).first()
-    if user and user.password == password:  
+    if user and check_password_hash(user.password, password):  
         access_token = create_access_token(identity={'username': user.username, 'role': user.role})
         return jsonify(access_token=access_token), 200
     return jsonify({'msg': 'Invalid credentials'}), 401
