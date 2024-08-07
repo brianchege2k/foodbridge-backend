@@ -1,123 +1,86 @@
-from app import db
-from werkzeug.security import generate_password_hash, check_password_hash
-import random
-import string
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
-# Define the User model
+db = SQLAlchemy()  # Initialize SQLAlchemy
+
 class User(db.Model):
+    """Model for user accounts."""
     __tablename__ = 'users'
 
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)  # Primary key
+    username = db.Column(db.String(80), unique=True, nullable=False)  # Username
+    email = db.Column(db.String(120), unique=True, nullable=False)  # User's email
+    password = db.Column(db.String(255), nullable=False)  # Hashed password
+    role = db.Column(db.String(20), default='user')  # User role (e.g., admin, volunteer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Creation timestamp
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Update timestamp
 
-    # Relationships
-    food_requests = db.relationship('FoodRequest', backref='user', lazy=True)
-    donations = db.relationship('Donation', backref='user', lazy=True)
-    volunteers = db.relationship('Volunteer', backref='user', lazy=True)
-    notifications = db.relationship('Notification', backref='user', lazy=True)
-    feedbacks = db.relationship('Feedback', backref='user', lazy=True)
+    donations = db.relationship('Donation', backref='user', lazy=True)  # Relationship with donations
+    volunteers = db.relationship('Volunteer', backref='user', lazy=True)  # Relationship with volunteers
+    notifications = db.relationship('Notification', backref='user', lazy=True)  # Relationship with notifications
+    feedbacks = db.relationship('Feedback', backref='user', lazy=True)  # Relationship with feedback
 
-    # Password hashing method
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    # Password verification method
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    # Verification code generation method
-    def generate_verification_code(self):
-        self.verification_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-
-    # Verification code verification method
-    def verify_code(self, code):
-        if self.verification_code == code:
-            self.is_verified = True
-            self.verification_code = None
-            return True
-        return False
-
-# Define the FoodRequest model
-class FoodRequest(db.Model):
-    __tablename__ = 'food_requests'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-# Define the Donation model
 class Donation(db.Model):
+    """Model for donations made by users."""
     __tablename__ = 'donations'
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    amount = db.Column(db.Numeric, nullable=False)
-    message = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)  # Primary key
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # User who made the donation
+    amount = db.Column(db.Numeric, nullable=False)  # Donation amount
+    message = db.Column(db.Text)  # Optional message
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Creation timestamp
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Update timestamp
 
-# Define the Volunteer model
 class Volunteer(db.Model):
+    """Model for volunteer registrations."""
     __tablename__ = 'volunteers'
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)  # Primary key
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # User who volunteered
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)  # Event ID they volunteered for
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Creation timestamp
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Update timestamp
 
-# Define the Notification model
 class Notification(db.Model):
+    """Model for notifications sent to users."""
     __tablename__ = 'notifications'
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    message = db.Column(db.Text, nullable=False)
-    is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)  # Primary key
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # User ID receiving the notification
+    message = db.Column(db.Text, nullable=False)  # Notification message
+    is_read = db.Column(db.Boolean, default=False)  # Read status
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Creation timestamp
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Update timestamp
 
-# Define the Event model
 class Event(db.Model):
+    """Model for events."""
     __tablename__ = 'events'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    location = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)  # Primary key
+    name = db.Column(db.String(120), nullable=False)  # Event name
+    description = db.Column(db.Text)  # Event description
+    location = db.Column(db.String(255), nullable=False)  # Event location
+    date = db.Column(db.DateTime, nullable=False)  # Event date and time
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Creation timestamp
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Update timestamp
 
-    # Relationships
-    volunteers = db.relationship('Volunteer', backref='event', lazy=True)
-
-# Define the Inventory model
 class Inventory(db.Model):
+    """Model for food inventory items."""
     __tablename__ = 'inventory'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    expiry_date = db.Column(db.Date, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)  # Primary key
+    name = db.Column(db.String(120), nullable=False)  # Item name
+    quantity = db.Column(db.Integer, nullable=False)  # Quantity of the item
+    expiry_date = db.Column(db.DateTime)  # Expiry date of the item
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Creation timestamp
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Update timestamp
 
-# Define the Feedback model
 class Feedback(db.Model):
+    """Model for user feedback."""
     __tablename__ = 'feedback'
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    message = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)  # Primary key
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # User who submitted the feedback
+    message = db.Column(db.Text, nullable=False)  # Feedback message
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Creation timestamp
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Update timestamp
