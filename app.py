@@ -12,8 +12,8 @@ app = Flask(__name__)  # Create Flask app
 app.config.from_object(Config)  # Load configuration
 
 db.init_app(app)  # Initialize SQLAlchemy
-migrate = Migrate(app, db)  # Initialize Flask-Migrate
-mail = Mail(app)  # Initialize Flask-Mail
+migrate = Migrate(app, db) 
+mail = Mail(app) 
 jwt = JWTManager(app)  # Initialize Flask-JWT-Extended
 
 @app.route('/register', methods=['POST'])
