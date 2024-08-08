@@ -13,7 +13,7 @@ app.config.from_object(Config)  # Load configuration
 
 db.init_app(app)  # Initialize SQLAlchemy
 migrate = Migrate(app, db) 
-mail = Mail(app) 
+mail = Mail(app)  # Initialize Flask-Mail
 jwt = JWTManager(app)  # Initialize Flask-JWT-Extended
 
 @app.route('/register', methods=['POST'])
