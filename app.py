@@ -42,6 +42,30 @@ def register():
 
     return jsonify({'message': 'User registered successfully. Please check your email for verification.'}), 201
 
+@app.route('/donate_mpesa', methods=['POST'])
+@jwt_required()
+def donate_mpesa():
+    """Initiate an M-Pesa donation."""
+    data = request.get_json()
+    phone_number = data.get('phone_number')
+    amount = data.get('amount')
+    message = data.get('message', '')
+
+    if not phone_number or not amount:
+        return jsonify({'error': 'Phone number and amount are required.'}), 400
+
+    # Initiate the M-Pesa STK push
+    response = lipa_na_mpesa_online(phone_number, amount, 'Donation', 'Donation to XYZ Charity')
+    
+    if response.get('ResponseCode') == '0':  # Successful request
+        user_id = get_jwt_identity()
+        new_donation = Donation(user_id=user_id, amount=amount, message=message)
+        db.session.add(new_donation)
+        db.session.commit()
+        return jsonify({'message': 'Donation initiated successfully. Please complete the payment on your phone.'}), 200
+    else:
+        return jsonify({'error': 'Failed to initiate M-Pesa donation.'}), 500
+
 @app.route('/login', methods=['POST'])
 def login():
     """Log in a user and return a JWT token."""
