@@ -81,6 +81,29 @@ def login():
     token = create_access_token(identity=user.id)  # Replace with actual user ID
     return jsonify({'token': token}), 200
 
+
+# creating mpesa callback route 
+@app.route('/mpesa-callback', methods=['POST'])
+def mpesa_callback():
+    """Handle M-Pesa payment callback."""
+    data = request.get_json()
+
+    if data['Body']['stkCallback']['ResultCode'] == 0:
+        # Payment was successful
+        phone_number = data['Body']['stkCallback']['CallbackMetadata']['Item'][4]['Value']
+        amount = data['Body']['stkCallback']['CallbackMetadata']['Item'][0]['Value']
+
+        # Update the donation status, etc.
+        # You may want to link this to a specific donation in your database
+
+        return jsonify({'ResultCode': 0, 'ResultDesc': 'Accepted'}), 200
+    else:
+        # Payment failed
+        return jsonify({'ResultCode': 1, 'ResultDesc': 'Rejected'}), 400
+
+
+
+
 @app.route('/donate', methods=['POST'])
 @jwt_required()  # Protect this route
 def donate():
