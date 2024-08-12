@@ -9,6 +9,7 @@ from utils import generate_verification_code, send_verification_email
 import bcrypt
 
 app = Flask(__name__)  # Create Flask app
+db = SQLAlchemy(app)
 app.config.from_object(Config)  # Load configuration
 
 db.init_app(app)  # Initialize SQLAlchemy
