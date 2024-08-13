@@ -2,19 +2,22 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_mail import Mail
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, unset_jwt_cookies
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from config import Config
 from models import db, User, Donation, Volunteer, Notification, Event, Inventory, Feedback
 from utils import generate_verification_code, send_verification_email
 import bcrypt
+from extensions import mail
 
-app = Flask(__name__)  # Create Flask app
-app.config.from_object(Config)  # Load configuration
 
-db.init_app(app)  # Initialize SQLAlchemy
-migrate = Migrate(app, db)  # Initialize Flask-Migrate
-mail = Mail(app)  # Initialize Flask-Mail
-jwt = JWTManager(app)  # Initialize Flask-JWT-Extended
+app = Flask(__name__)
+app.config.from_object(Config)
+mail.init_app(app)
+
+db.init_app(app)
+migrate = Migrate(app, db)
+mail = Mail(app)
+jwt = JWTManager(app)
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -28,7 +31,6 @@ def register():
         return jsonify({'error': 'Username, email, and password are required.'}), 400
 
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
     new_user = User(username=username, email=email, password=hashed_password)
     db.session.add(new_user)
     db.session.commit()
@@ -50,17 +52,7 @@ def login():
         return jsonify({'error': 'Invalid email or password.'}), 401
 
     token = create_access_token(identity=user.id)
-    
-    # Alert user after successful login
-    return jsonify({'token': token, 'alert': f'Welcome back, {user.username}!'}), 200
-
-@app.route('/logout', methods=['POST'])
-@jwt_required()
-def logout():
-    """Log out the user and unset the JWT token."""
-    response = jsonify({'message': 'Logged out successfully.'})
-    unset_jwt_cookies(response)
-    return response, 200
+    return jsonify({'token': token}), 200
 
 @app.route('/donate', methods=['POST'])
 @jwt_required()

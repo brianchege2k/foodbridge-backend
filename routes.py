@@ -1,11 +1,9 @@
 from flask import request, jsonify
 from app import app, db
-from models import User
+from models import User, Donation
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from utils import generate_verification_code
-import smtplib
-from email.mime.text import MIMEText
+from utils import generate_verification_code, send_verification_email
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
@@ -24,7 +22,11 @@ def register():
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({"msg": "User registered successfully"}), 201
+    # Generate verification code and send email
+    verification_code = generate_verification_code()
+    send_verification_email(email, verification_code)
+
+    return jsonify({"msg": "User registered successfully, please verify your email"}), 201
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
@@ -72,4 +74,3 @@ def get_donation_summary():
     total_donations = Donation.query.count()
 
     return jsonify({"total_amount": total_amount, "total_donations": total_donations}), 200
-
