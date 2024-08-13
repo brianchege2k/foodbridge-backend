@@ -1,7 +1,7 @@
 import random
 import string
 from flask_mail import Message
-from extensions import mail  
+from extensions import mail  # Corrected import statement
 
 def generate_verification_code(length=6):
     """Generate a random verification code."""
