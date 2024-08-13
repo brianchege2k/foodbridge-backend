@@ -20,6 +20,8 @@ class Config:
     MAIL_USE_TLS = True
     MAIL_USERNAME = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+
+    # Check if mail credentials are set
     if not MAIL_USERNAME or not MAIL_PASSWORD:
         raise ValueError("Mail credentials are not set")
 

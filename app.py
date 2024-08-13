@@ -7,7 +7,10 @@ from config import Config
 from models import db, User, Donation, Volunteer, Notification, Event, Inventory, Feedback
 from utils import generate_verification_code, send_verification_email
 import bcrypt
+from dotenv import load_dotenv
+import os
 from extensions import mail
+load_dotenv()
 
 
 app = Flask(__name__)
