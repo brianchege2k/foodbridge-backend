@@ -1,3 +1,5 @@
-__pycache__/
-__instances__/
-__migrations__/
+/__pycache__
+/__instance__
+/__migrations__
+.env/
+.venv/
