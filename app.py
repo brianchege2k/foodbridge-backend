@@ -223,6 +223,23 @@ def donate():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/admin/campaigns', methods=['POST'])
+@jwt_required()
+def add_campaign():
+    data = request.get_json()
+    try:
+        new_campaign = Event(
+            name=data.get('name'),
+            date=data.get('date'),
+            location=data.get('location'),
+            description=data.get('description')
+        )
+        db.session.add(new_campaign)
+        db.session.commit()
+
+        return jsonify({"message": "Campaign added successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
