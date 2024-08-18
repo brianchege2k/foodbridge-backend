@@ -16,9 +16,8 @@ class Donation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    message = db.Column(db.String(255), nullable=True)  # Optional message field
-    timestamp = db.Column(db.DateTime, default=db.func.now())  # To track when the donation was made
-
+    message = db.Column(db.String(255), nullable=True)  
+    timestamp = db.Column(db.DateTime, default=db.func.now())  
 
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -52,3 +51,9 @@ class Volunteer(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('user_volunteers', lazy=True))
     event = db.relationship('Event', backref=db.backref('event_volunteers', lazy=True))
+
+class Member(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    position = db.Column(db.String(100), nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)
