@@ -9,16 +9,16 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     donations = db.relationship('Donation', backref='donor', lazy=True)
-    feedbacks = db.relationship('Feedback', backref='author', lazy=True)
+    feedbacks_given = db.relationship('Feedback', backref='author', lazy=True)
     volunteers = db.relationship('Volunteer', backref='participant', lazy=True)
-    replies = db.relationship('Reply', backref='user', lazy=True)  # Added relationship
+    replies = db.relationship('Reply', backref='user_replies', lazy=True)
 
 class Donation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    message = db.Column(db.String(255), nullable=True)  
-    timestamp = db.Column(db.DateTime, default=db.func.now())  
+    message = db.Column(db.String(255), nullable=True)
+    timestamp = db.Column(db.DateTime, default=db.func.now())
 
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -30,9 +30,10 @@ class Admin(db.Model):
 
 class Feedback(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    message = db.Column(db.Text, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    feedback_text = db.Column(db.Text, nullable=False)
-    user = db.relationship('User', backref=db.backref('feedbacks', lazy=True))
+    user = db.relationship('User', back_populates='feedbacks_given')
+    replies = db.relationship('Reply', back_populates='feedback')
 
 class Inventory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -46,14 +47,14 @@ class Event(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    volunteers = db.relationship('Volunteer', backref='event', lazy=True)
+    volunteers = db.relationship('Volunteer', back_populates='event')
 
 class Volunteer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('user_volunteers', lazy=True))
-    event = db.relationship('Event', backref=db.backref('event_volunteers', lazy=True))
+    user = db.relationship('User', back_populates='volunteers')
+    event = db.relationship('Event', back_populates='volunteers')
 
 class Member(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -67,5 +68,5 @@ class Reply(db.Model):
     feedback_id = db.Column(db.Integer, db.ForeignKey('feedback.id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.now())
-    user = db.relationship('User', backref=db.backref('replies', lazy=True))
-    feedback = db.relationship('Feedback', backref=db.backref('replies', lazy=True))
+    user = db.relationship('User', back_populates='replies')
+    feedback = db.relationship('Feedback', back_populates='replies')

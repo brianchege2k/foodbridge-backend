@@ -1,8 +1,8 @@
-"""Describe the changes made
+"""Fix relationship conflicts
 
-Revision ID: a38960eb0366
+Revision ID: a49b075bd182
 Revises: 
-Create Date: 2024-08-19 09:11:48.105903
+Create Date: 2024-08-19 09:47:52.540659
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'a38960eb0366'
+revision = 'a49b075bd182'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -67,8 +67,8 @@ def upgrade():
     )
     op.create_table('feedback',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('message', sa.Text(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('feedback_text', sa.Text(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
