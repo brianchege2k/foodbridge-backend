@@ -7,13 +7,21 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-from models import db, User, Donation, Admin, Event, Feedback, Member 
+from datetime import datetime
+import stripe
+
+
+# Import your models here
+from models import db, User, Donation, Admin, Event, Feedback, Member ,Reply
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}}, methods=["GET", "POST", "PUT", "DELETE"], headers=["Content-Type", "Authorization"])
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": "*"}}, 
+      methods=["GET", "POST", "PATCH", "PUT", "DELETE"], 
+      headers=["Content-Type", "Authorization"], 
+      supports_credentials=True)
+
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///app.db')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
@@ -23,6 +31,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 mail = Mail(app)
 jwt = JWTManager(app)
+
 
 @app.route('/')
 def index():
@@ -59,11 +68,18 @@ def login():
     email = data.get('email')
     password = data.get('password')
 
+    # Retrieve the user by email
     user = User.query.filter_by(email=email).first()
 
+    # Check if the user exists and the password is correct
     if not user or not check_password_hash(user.password, password):
         return jsonify({"msg": "Invalid credentials"}), 401
 
+    # Check if the user account is active
+    if not user.isActive:
+        return jsonify({"msg": "Account is deactivated"}), 403
+
+    # Generate access token
     access_token = create_access_token(identity={'id': user.id, 'email': user.email})
     return jsonify({"msg": "Login successful", "access_token": access_token}), 200
 
@@ -89,19 +105,21 @@ def get_admin_stats():
         total_users = User.query.count()
         total_donations = db.session.query(db.func.sum(Donation.amount)).scalar() or 0
         active_campaigns = Event.query.count()
+        total_members = Member.query.count()  # Add this line to count the members
 
         data = {
             'stats': {
                 'users': total_users,
                 'donations': total_donations,
                 'campaigns': active_campaigns,
+                'members': total_members,  # Include the members count
             }
         }
 
         return jsonify(data), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+    
 @app.route('/api/admin/users', methods=['GET'])
 @jwt_required()
 def get_all_users():
@@ -113,87 +131,48 @@ def get_all_users():
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
+                'isActive': user.isActive  # Include activation status
             } for user in users
         ]
 
         return jsonify(users_list), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+    
+@app.route('/api/admin/users/<int:user_id>/status', methods=['PUT'])
 @jwt_required()
-def delete_user(user_id):
-    try:
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({"msg": "User not found"}), 404
-        
-        db.session.delete(user)
-        db.session.commit()
+def toggle_user_status(user_id):
+    user = User.query.get_or_404(user_id)
+    data = request.get_json()
+    user.isActive = data.get('isActive')
+    db.session.commit()
+    return jsonify({'message': 'User status updated successfully'})    
 
-        return jsonify({"msg": "User deleted successfully"}), 200
+@app.route('/api/admin/events', methods=['GET'])
+@jwt_required()
+def get_events():
+    try:
+        events = Event.query.all()
+        return jsonify([event.serialize() for event in events]), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route('/api/admin/campaigns', methods=['GET'])
-@jwt_required()
-def get_campaigns():
-    try:
-        campaigns = Event.query.all()
-        campaigns_list = [
-            {
-                'id': campaign.id,
-                'name': campaign.name,
-                'date': campaign.date.strftime('%Y-%m-%d %H:%M:%S'),
-                'location': campaign.location,
-                'description': campaign.description
-            }
-            for campaign in campaigns
-        ]
-        return jsonify(campaigns_list), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/admin/campaigns/<int:campaign_id>', methods=['PUT'])
-@jwt_required()
-def update_campaign(campaign_id):
-    try:
-        data = request.json
-        campaign = Event.query.get_or_404(campaign_id)
-
-        # Update fields if provided in the request
-        campaign.name = data.get('name', campaign.name)
-        campaign.date = data.get('date', campaign.date)
-        campaign.location = data.get('location', campaign.location)
-        campaign.description = data.get('description', campaign.description)
-
-        db.session.commit()
-
-        return jsonify({"message": "Campaign updated successfully"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/admin/campaigns/<int:campaign_id>', methods=['DELETE'])
-@jwt_required()
-def delete_campaign(campaign_id):
-    try:
-        campaign = Event.query.get_or_404(campaign_id)
-        db.session.delete(campaign)
-        db.session.commit()
-
-        return jsonify({"message": "Campaign deleted successfully"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/events/incomplete', methods=['GET'])
+def get_incomplete_events():
+    events = Event.query.filter_by(completed=False).all()
+    return jsonify([event.serialize() for event in events])   
 
 @app.route('/api/feedback', methods=['POST'])
 def submit_feedback():
     data = request.get_json()
     try:
-        user = User.query.filter_by(email=data['email']).first()  # Fetch user based on email
+        # Fetch user based on email
+        user = User.query.filter_by(email=data.get('email')).first()
         if not user:
             return jsonify({'message': 'User not found'}), 404
 
-        feedback = Feedback(user_id=user.id, feedback_text=data['message'])
+        # Create feedback
+        feedback = Feedback(user_id=user.id, message=data.get('message'))
         db.session.add(feedback)
         db.session.commit()
 
@@ -201,49 +180,60 @@ def submit_feedback():
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@app.route('/api/donate', methods=['POST'])
+@app.route('/api/admin/events', methods=['POST'])
 @jwt_required()
-def donate():
-    data = request.get_json()
-    user_id = get_jwt_identity()['id']
-    amount = data.get('amount')
-    message = data.get('message', '')
-
-    if not amount:
-        return jsonify({"msg": "Amount is required"}), 400
-
-    try:
-        donation = Donation(user_id=user_id, amount=amount, message=message)
-        db.session.add(donation)
-        db.session.commit()
-
-        return jsonify({"msg": "Donation successful"}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/admin/campaigns', methods=['POST'])
-@jwt_required()
-def add_campaign():
+def add_event():
     data = request.get_json()
     try:
-        new_campaign = Event(
+        # Convert date string to datetime object
+        event_date = datetime.strptime(data.get('date'), '%Y-%m-%d')
+
+        # Convert the datetime object back to a string for storage
+        event_date_str = event_date.strftime('%Y-%m-%d')
+
+        new_event = Event(
             name=data.get('name'),
-            date=data.get('date'),
+            date=event_date_str,  # Store the date as a string
             location=data.get('location'),
-            description=data.get('description')
+            description=data.get('description'),
+            picture_url=data.get('pictureUrl')  # Ensure this key matches the request body
         )
-        db.session.add(new_campaign)
+        db.session.add(new_event)
         db.session.commit()
 
-        return jsonify({"message": "Campaign added successfully"}), 201
+        return jsonify({"message": "Event added successfully"}), 201
     except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/events/<int:id>/complete', methods=['PATCH'])
+@jwt_required()
+def complete_event(id):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({"error": "Authorization token missing"}), 401
+
+    event = Event.query.get(id)
+    if not event:
+        return jsonify({"error": "Event not found"}), 404
+
+    try:
+        # Set completed to True
+        event.completed = True
+        db.session.commit()
+        return jsonify(event.serialize()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 
 # Endpoint to add a new member
 @app.route('/api/admin/members', methods=['POST'])
 @jwt_required()
 def add_member():
     data = request.get_json()
+    print(data)  # Log the received data to verify it's correct
+    
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
@@ -254,7 +244,7 @@ def add_member():
         new_member = Member(
             name=data.get('name'),
             position=data.get('position'),
-            image_url=data.get('image_url')  # Optional field
+            image_url=data.get('image_url')  # Ensure this field matches the frontend key
         )
         db.session.add(new_member)
         db.session.commit()
@@ -267,6 +257,7 @@ def add_member():
         }}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # Endpoint to fetch all members
 @app.route('/api/members', methods=['GET'])
@@ -310,16 +301,28 @@ def get_feedback():
 
         for feedback in feedback_records:
             user = User.query.get(feedback.user_id)  # Get the user associated with the feedback
-            feedback_list.append({
-                'userId': user.id,
-                'username': user.username,
-                'email': user.email,
-                'message': feedback.feedback_text
-            })
+            if user:
+                feedback_list.append({
+                    'id': feedback.id,                # Include the feedback id
+                    'userId': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'message': feedback.message       # Ensure attribute name is correct
+                })
+            else:
+                feedback_list.append({
+                    'id': feedback.id,                # Include the feedback id
+                    'userId': feedback.user_id,
+                    'username': 'Unknown',            # Default value if user not found
+                    'email': 'Unknown',
+                    'message': feedback.message
+                })
 
         return jsonify({'feedback': feedback_list}), 200
     except Exception as e:
+        print(f"Error: {str(e)}")  # Print the error for debugging
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/admin/feedback/reply', methods=['POST'])
 @jwt_required()
@@ -328,14 +331,84 @@ def post_reply():
         data = request.get_json()
         user_id = data.get('userId')
         user_email = data.get('userEmail')
-        feedback = data.get('feedback')
+        feedback_id = data.get('feedbackId')
+        reply_message = data.get('reply')
 
-        if not user_id or not user_email or not feedback:
+        if not user_id or not user_email or not feedback_id or not reply_message:
             return jsonify({"error": "Missing required fields"}), 400
 
-        # Handle sending reply via email logic here
-        # e.g., send_email(to=user_email, subject="Feedback Reply", body=feedback)
+        new_reply = Reply(
+            user_id=user_id,
+            feedback_id=feedback_id,
+            message=reply_message
+        )
+        db.session.add(new_reply)
+        db.session.commit()
 
-        return jsonify({'reply': {'userId': user_id, 'feedback': feedback}}), 200
+        return jsonify({'reply': {'userId': user_id, 'feedbackId': feedback_id, 'message': reply_message}}), 200
     except Exception as e:
+        print(f"Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/create-payment-intent', methods=['POST'])
+def create_payment_intent():
+    data = request.json
+    amount = data['amount']
+
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount=int(amount) * 100,  # amount in cents
+            currency='usd'
+        )
+        return jsonify(clientSecret=intent['client_secret'])
+    except Exception as e:
+        return jsonify(error=str(e)), 403
+
+@app.route('/api/save-donation', methods=['POST'])
+def save_donation():
+    data = request.json
+
+    # Validate required fields
+    if 'amount' not in data or not isinstance(data['amount'], (int, float)):
+        return jsonify({"error": "Invalid amount. It should be a number."}), 422
+
+    if 'paymentIntentId' not in data or not isinstance(data['paymentIntentId'], str):
+        return jsonify({"error": "Invalid payment intent ID. It should be a string."}), 422
+
+    if 'email' not in data or not isinstance(data['email'], str):
+        return jsonify({"error": "Invalid email. It should be a string."}), 422
+
+    # Extract email and find the user
+    email = data['email']
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        return jsonify({"error": "User with the provided email not found."}), 404
+
+    # Assuming message is optional
+    amount = int(float(data['amount']))  # Convert the amount to an integer (cents)
+    message = data.get('message', '')
+    payment_intent_id = data['paymentIntentId']
+    user_id = user.id
+
+    # Save the donation to the database
+    donation = Donation(amount=amount, message=message, payment_intent_id=payment_intent_id, user_id=user_id)
+    db.session.add(donation)
+    db.session.commit()
+
+    return jsonify({"msg": "Donation saved successfully."}), 200
+
+@app.route('/api/check-email', methods=['POST'])
+def check_email():
+    data = request.json
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+    
+    user = User.query.filter_by(email=email).first()
+    
+    if user:
+        return jsonify({"exists": True}), 200
+    else:
+        return jsonify({"exists": False}), 200      

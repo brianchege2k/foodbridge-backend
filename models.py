@@ -1,24 +1,55 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 db = SQLAlchemy()
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
+    isActive = db.Column(db.Boolean, default=True)  # Added field for activation status
     donations = db.relationship('Donation', backref='donor', lazy=True)
     feedbacks_given = db.relationship('Feedback', backref='author', lazy=True)
     volunteers = db.relationship('Volunteer', backref='participant', lazy=True)
     replies = db.relationship('Reply', backref='user_replies', lazy=True)
 
+
 class Donation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    amount = db.Column(db.Float, nullable=False)
+    amount = db.Column(db.Integer, nullable=False)
     message = db.Column(db.String(255), nullable=True)
-    timestamp = db.Column(db.DateTime, default=db.func.now())
+    payment_intent_id = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_user_donation'), nullable=False)
+
+    def _init_(self, amount, message, payment_intent_id, user_id):
+        self.amount = amount
+        self.message = message
+        self.payment_intent_id = payment_intent_id
+        self.user_id = user_id
+
+class Event(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    date = db.Column(db.String(10), nullable=False)  # Changed from db.Date to db.String
+    location = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    picture_url = db.Column(db.String(200), nullable=True)
+    completed = db.Column(db.Boolean, default=False)
+    volunteers = db.relationship('Volunteer', back_populates='event')
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'date': self.date,  # No need to format date here, it's already a string
+            'location': self.location,
+            'description': self.description,
+            'picture_url': self.picture_url,
+            'completed': self.completed
+        }
 
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -40,15 +71,6 @@ class Inventory(db.Model):
     item_name = db.Column(db.String(100), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text, nullable=True)
-
-class Event(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.DateTime, nullable=False)
-    location = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    volunteers = db.relationship('Volunteer', back_populates='event')
-
 class Volunteer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
