@@ -1,8 +1,8 @@
 """Fix relationship conflicts
 
-Revision ID: a49b075bd182
+Revision ID: 55536dcc43a4
 Revises: 
-Create Date: 2024-08-19 09:47:52.540659
+Create Date: 2024-08-19 10:31:40.826383
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'a49b075bd182'
+revision = '55536dcc43a4'
 down_revision = None
 branch_labels = None
 depends_on = None
