@@ -17,10 +17,14 @@ from models import db, User, Donation, Admin, Event, Feedback, Member ,Reply
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}}, 
-      methods=["GET", "POST", "PATCH", "PUT", "DELETE"], 
-      headers=["Content-Type", "Authorization"], 
-      supports_credentials=True)
+CORS(
+    app,
+    resources={r"/api/*": {"origins": "http://localhost:3000"}}, 
+    methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+    headers=["Content-Type", "Authorization"],
+    supports_credentials=True
+)
+
 
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///app.db')
