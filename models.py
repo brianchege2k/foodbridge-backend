@@ -11,6 +11,7 @@ class User(db.Model):
     donations = db.relationship('Donation', backref='donor', lazy=True)
     feedbacks = db.relationship('Feedback', backref='author', lazy=True)
     volunteers = db.relationship('Volunteer', backref='participant', lazy=True)
+    replies = db.relationship('Reply', backref='user', lazy=True)  # Added relationship
 
 class Donation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -31,6 +32,7 @@ class Feedback(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     feedback_text = db.Column(db.Text, nullable=False)
+    user = db.relationship('User', backref=db.backref('feedbacks', lazy=True))
 
 class Inventory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -44,6 +46,7 @@ class Event(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
+    volunteers = db.relationship('Volunteer', backref='event', lazy=True)
 
 class Volunteer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -57,3 +60,12 @@ class Member(db.Model):
     name = db.Column(db.String(100), nullable=False)
     position = db.Column(db.String(100), nullable=False)
     image_url = db.Column(db.String(255), nullable=True)
+
+class Reply(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    feedback_id = db.Column(db.Integer, db.ForeignKey('feedback.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    user = db.relationship('User', backref=db.backref('replies', lazy=True))
+    feedback = db.relationship('Feedback', backref=db.backref('replies', lazy=True))
