@@ -30,23 +30,28 @@ def index():
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
 
-    if not username or not email or not password:
-        return jsonify({"msg": "Missing fields"}), 400
+        if not username or not email or not password:
+            return jsonify({"msg": "Missing fields"}), 400
 
-    if User.query.filter_by(email=email).first() or User.query.filter_by(username=username).first():
-        return jsonify({"msg": "User already exists"}), 409
+        if User.query.filter_by(email=email).first() or User.query.filter_by(username=username).first():
+            return jsonify({"msg": "User already exists"}), 409
 
-    hashed_password = generate_password_hash(password)
-    new_user = User(username=username, email=email, password=hashed_password)
-    db.session.add(new_user)
-    db.session.commit()
+        hashed_password = generate_password_hash(password)
+        new_user = User(username=username, email=email, password=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
 
-    return jsonify({"msg": "User registered successfully"}), 201
+        return jsonify({"msg": "User registered successfully"}), 201
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"msg": "Internal Server Error"}), 500
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
