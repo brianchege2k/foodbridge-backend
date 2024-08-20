@@ -357,16 +357,25 @@ def post_reply():
 @app.route('/api/create-payment-intent', methods=['POST'])
 def create_payment_intent():
     data = request.json
-    amount = data['amount']
+    amount = data.get('amount')
+
+    if not amount:
+        return jsonify(error="Amount is required"), 400
 
     try:
+        # Create a PaymentIntent with the order amount and currency
         intent = stripe.PaymentIntent.create(
             amount=int(amount) * 100,  # amount in cents
             currency='usd'
         )
         return jsonify(clientSecret=intent['client_secret'])
+    except stripe.error.StripeError as e:
+        # Handle specific Stripe API errors
+        return jsonify(error=str(e)), 402
     except Exception as e:
-        return jsonify(error=str(e)), 403
+        # Handle any other exceptions
+        return jsonify(error="An error occurred. Please try again."), 500
+
 
 @app.route('/api/save-donation', methods=['POST'])
 def save_donation():
