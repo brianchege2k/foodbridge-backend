@@ -30,6 +30,7 @@ CORS(
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'sqlite:///app.db')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key')
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 db.init_app(app)
 migrate = Migrate(app, db)
