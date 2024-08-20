@@ -19,8 +19,8 @@ load_dotenv()
 app = Flask(__name__)
 CORS(
     app,
-    resources={r"/api/*": {"origins": "http://localhost:3000"}}, 
-    methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+    resources={r"/api/*": {"origins": "https://foodbridge-project.vercel.app"}}, 
+    methods=["GET", "POST", "PATCH", "PUT", "DELETE","OPTIONS"],
     headers=["Content-Type", "Authorization"],
     supports_credentials=True
 )
